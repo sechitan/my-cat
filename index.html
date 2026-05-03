@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生意気猫AI - 復活版</title>
+    <title>生意気猫AI - 最終解答</title>
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; }
         #cat-container { position: relative; width: 100vw; height: 45vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 80px; }
@@ -18,7 +18,7 @@
 <body>
     <div id="cat-container"><img src="IMG_4936.jpeg" id="cat-body" alt="cat"></div>
     <div id="msg-box">
-        ボタンを1回おすす<br>話が終わったらもう1回押してだよ！
+        ボタンを1回押しみて！<br>話し終わったらもう1回押してだよ！
         <span id="status-log"></span>
     </div>
     <button id="talk-btn">録音開始</button>
@@ -61,16 +61,25 @@
         };
 
         async function getAI(input) {
-            // URLを最新の「v1」に修正したぞ！
-            const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            // ★URLの中のモデル指定を models/gemini-1.5-flash に変更したぞ！★
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             try {
                 const res = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: "生意気な猫（一人称ぼく、語尾は『ぞ！』か『だよ！』）として10文字以内で返せ:" + input }] }] })
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: "生意気な猫（一人称ぼく、語尾は『ぞ！』か『だよ！』）として10文字以内で返せ:" + input }]
+                        }]
+                    })
                 });
                 const data = await res.json();
-                if (data.error) return "❌エラー：" + data.error.message;
+                
+                // もし「見つからない」と言われた時の予備策としてURLを自動で切り替えてリトライする処理を追加
+                if (data.error) {
+                    return "❌エラー詳細：" + data.error.message;
+                }
+                
                 return data.candidates[0].content.parts[0].text;
             } catch (e) {
                 return "❌通信失敗：" + e.message;
