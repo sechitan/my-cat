@@ -3,78 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>猫AI - グラフ解決版</title>
+    <title>生意気猫AI - テキスト版</title>
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; }
-        #cat-container { position: relative; width: 100vw; height: 45vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 80px; }
-        #cat-body { width: 80%; max-width: 350px; height: auto; animation: breathe 4s infinite ease-in-out; }
+        #cat-container { position: relative; width: 100vw; height: 40vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 50px; }
+        #cat-body { width: 70%; max-width: 300px; height: auto; animation: breathe 4s infinite ease-in-out; }
         @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
         @keyframes pakupaku { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1) translateY(-10px); } }
-        #msg-box { background: white; border-radius: 20px; padding: 15px; width: 85%; text-align: center; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; min-height: 80px; }
-        #talk-btn { position: fixed; bottom: 30px; width: 120px; height: 120px; border-radius: 50%; border: none; background: #ff4081; color: white; font-size: 18px; font-weight: bold; touch-action: none; }
-        #status-log { color: red; font-size: 11px; margin-top: 10px; display: block; }
+        
+        #msg-box { background: white; border-radius: 20px; padding: 15px; width: 85%; text-align: center; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; min-height: 60px; }
+        
+        #input-area { position: fixed; bottom: 20px; width: 90%; display: flex; gap: 10px; background: white; padding: 10px; border-radius: 30px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+        #user-input { flex: 1; border: none; outline: none; padding: 10px 15px; font-size: 16px; border-radius: 20px; background: #f0f0f0; }
+        #send-btn { background: #ff4081; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        
+        #status-log { color: red; font-size: 11px; margin-top: 5px; display: block; word-break: break-all; }
     </style>
 </head>
 <body>
     <div id="cat-container"><img src="IMG_4936.jpeg" id="cat-body" alt="cat"></div>
+    
     <div id="msg-box">
-        ボタンを【長押し】して話して！<br>離すと送信するぞ！
+        ボクに何か話しかけてだよ！
         <span id="status-log"></span>
     </div>
-    <button id="talk-btn" onpointerdown="startRec()" onpointerup="stopRec()">長押しで<br>話すぞ！</button>
+
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="メッセージを入力...">
+        <button id="send-btn">送信</button>
+    </div>
 
     <script>
+        // あなたの最新APIキー
         const API_KEY = "AIzaSyBfoNa8ysLj71atZQpc-9tZln5_s4__Ogs"; 
+
+        const sendBtn = document.getElementById('send-btn');
+        const userInput = document.getElementById('user-input');
+        const msgBox = document.getElementById('msg-box');
         const statusLog = document.getElementById('status-log');
         const catBody = document.getElementById('cat-body');
 
-        const recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
-        recognition.lang = 'ja-JP';
+        // 送信処理
+        async function handleSend() {
+            const text = userInput.value.trim();
+            if (!text) return;
 
-        function startRec() {
-            window.speechSynthesis.cancel();
-            recognition.start();
-            statusLog.innerText = "聴いてるぞ...";
+            userInput.value = "";
+            msgBox.innerHTML = "「" + text + "」だな！<br>考え中だぞ...<br><span id='status-log'></span>";
+            statusLog.innerText = "";
+
+            const reply = await getAI(text);
+            msgBox.innerHTML = reply + "<br><span id='status-log'></span>";
+            speak(reply);
         }
 
-        function stopRec() {
-            recognition.stop();
-            statusLog.innerText = "送信中...";
-        }
+        sendBtn.addEventListener('click', handleSend);
+        userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
 
-        recognition.onresult = async (event) => {
-            const text = event.results[0][0].transcript;
-            document.getElementById('msg-box').innerHTML = "「" + text + "」だな！<br>考え中だよ...<br><span id='status-log'></span>";
-            
-            // ★最新の安定版URLだぞ★
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-            
+        async function getAI(input) {
+            const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             try {
-                const response = await fetch(url, {
+                const res = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: "生意気な猫として10文字以内で返せ:" + text }] }]
+                        contents: [{ parts: [{ text: "生意気な猫（一人称ぼく、語尾は『ぞ！』か『だよ！』）として15文字以内で返せ:" + input }] }]
                     })
                 });
-                
-                const data = await response.json();
+                const data = await res.json();
                 
                 if (data.error) {
-                    // ここで400や404の本当の理由を表示するぞ！
-                    statusLog.innerText = "❌Googleの回答：" + data.error.message;
-                } else {
-                    const reply = data.candidates[0].content.parts[0].text;
-                    document.getElementById('msg-box').innerHTML = reply + "<br><span id='status-log'></span>";
-                    const uttr = new SpeechSynthesisUtterance(reply);
-                    uttr.onstart = () => catBody.style.animation = 'pakupaku 0.15s infinite';
-                    uttr.onend = () => catBody.style.animation = 'breathe 4s infinite';
-                    window.speechSynthesis.speak(uttr);
+                    document.getElementById('status-log').innerText = "❌エラー：" + data.error.message;
+                    return "エラーだぞ！";
                 }
+                
+                return data.candidates[0].content.parts[0].text;
             } catch (e) {
-                statusLog.innerText = "❌通信エラーだにゃ";
+                document.getElementById('status-log').innerText = "❌通信失敗";
+                return "ネットがつながらないぞ！";
             }
-        };
+        }
+
+        function speak(text) {
+            const s = new SpeechSynthesisUtterance(text);
+            s.lang = 'ja-JP'; 
+            s.pitch = 1.8; // 高めの声
+            s.onstart = () => { catBody.style.animation = 'pakupaku 0.15s infinite'; };
+            s.onend = () => { catBody.style.animation = 'breathe 4s infinite'; };
+            window.speechSynthesis.speak(s);
+        }
     </script>
 </body>
 </html>
