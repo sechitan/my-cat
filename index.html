@@ -1,304 +1,80 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<title>生意気な子猫ちゃん（無料AI）</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-
-<!-- WebLLM（無料AI） -->
-<script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/dist/index.min.js"></script>
-
-<style>
-body {
-  margin: 0;
-  padding: 0;
-  background: #f5f5f5;
-  font-family: system-ui;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-}
-.app {
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px;
-  width: 90%;
-  max-width: 420px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-  text-align: center;
-  position: relative;
-  z-index: 1;
-}
-.cat-wrapper {
-  position: relative;
-  width: 260px;
-  height: 260px;
-  margin: 0 auto 16px;
-}
-.cat {
-  width: 100%;
-  height: 100%;
-  border-radius: 16px;
-  overflow: hidden;
-  position: relative;
-  animation: breathing 4s ease-in-out infinite;
-}
-.cat img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-@keyframes breathing {
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-}
-/* まばたき */
-.blink {
-  position: absolute;
-  top: 30%;
-  left: 20%;
-  width: 60%;
-  height: 20%;
-  background: black;
-  border-radius: 50%;
-  opacity: 0;
-  animation: blink 6s infinite;
-}
-@keyframes blink {
-  0%,92%,100% { opacity: 0; transform: scaleY(0.1); }
-  94%,96% { opacity: 1; transform: scaleY(1); }
-}
-/* 口パク */
-.mouth {
-  position: absolute;
-  left: 50%;
-  top: 70%;
-  width: 60px;
-  height: 26px;
-  margin-left: -30px;
-  background: rgba(0,0,0,0.6);
-  border-radius: 0 0 60px 60px;
-  transform-origin: top center;
-  transform: scaleY(0.1);
-}
-.talking .mouth {
-  animation: talk 0.18s infinite;
-}
-@keyframes talk {
-  0% { transform: scaleY(0.1); }
-  50% { transform: scaleY(1); }
-  100% { transform: scaleY(0.1); }
-}
-
-/* 押せるボタン（絶対に反応する） */
-.mic-btn {
-  width: 200px;
-  height: 60px;
-  border-radius: 12px;
-  border: none;
-  background: #ff6b9c;
-  color: #fff;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  z-index: 9999;
-  position: relative;
-  touch-action: none;
-}
-.mic-btn:active {
-  background: #ff3b30;
-}
-
-.log {
-  background: #fafafa;
-  border: 1px solid #eee;
-  padding: 8px;
-  height: 120px;
-  overflow-y: auto;
-  font-size: 12px;
-  text-align: left;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>猫AI - グラフ解決版</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; }
+        #cat-container { position: relative; width: 100vw; height: 45vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 80px; }
+        #cat-body { width: 80%; max-width: 350px; height: auto; animation: breathe 4s infinite ease-in-out; }
+        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes pakupaku { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1) translateY(-10px); } }
+        #msg-box { background: white; border-radius: 20px; padding: 15px; width: 85%; text-align: center; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; min-height: 80px; }
+        #talk-btn { position: fixed; bottom: 30px; width: 120px; height: 120px; border-radius: 50%; border: none; background: #ff4081; color: white; font-size: 18px; font-weight: bold; touch-action: none; }
+        #status-log { color: red; font-size: 11px; margin-top: 10px; display: block; }
+    </style>
 </head>
-
 <body>
-<div class="app">
-  <h2>生意気な子猫ちゃん（無料AI）</h2>
-
-  <div class="cat-wrapper">
-    <div class="cat" id="cat">
-      <img src="IMG_4936.jpeg" />
-      <div class="blink"></div>
-      <div class="mouth"></div>
+    <div id="cat-container"><img src="IMG_4936.jpeg" id="cat-body" alt="cat"></div>
+    <div id="msg-box">
+        ボタンを【長押し】して話して！<br>離すと送信するぞ！
+        <span id="status-log"></span>
     </div>
-  </div>
+    <button id="talk-btn" onpointerdown="startRec()" onpointerup="stopRec()">長押しで<br>話すぞ！</button>
 
-  <div class="log" id="log"></div>
+    <script>
+        const API_KEY = "AIzaSyBfoNa8ysLj71atZQpc-9tZln5_s4__Ogs"; 
+        const statusLog = document.getElementById('status-log');
+        const catBody = document.getElementById('cat-body');
 
-  <button id="micBtn" class="mic-btn">🎤 長押しで話す</button>
-  <div id="status" style="font-size:12px; margin-top:6px;"></div>
-</div>
+        const recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
+        recognition.lang = 'ja-JP';
 
-<script>
-/* ---------------------------
-   1. WebLLM 初期化
----------------------------- */
-const engine = new webllm.MLCEngine();
-let llmReady = false;
+        function startRec() {
+            window.speechSynthesis.cancel();
+            recognition.start();
+            statusLog.innerText = "聴いてるぞ...";
+        }
 
-async function initLLM() {
-  status.textContent = "AI読み込み中…（20〜40秒）";
-  await engine.reload("Llama-3.2-1B-Instruct-q4f32_1-MLC");
-  llmReady = true;
-  status.textContent = "AI準備OK！話しかけてね";
-}
-initLLM();
+        function stopRec() {
+            recognition.stop();
+            statusLog.innerText = "送信中...";
+        }
 
-/* ---------------------------
-   2. マイク録音（getUserMedia）
----------------------------- */
-let mediaRecorder;
-let audioChunks = [];
-
-async function startRecording() {
-  status.textContent = "録音中…";
-
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  mediaRecorder = new MediaRecorder(stream);
-
-  audioChunks = [];
-  mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-
-  mediaRecorder.start();
-}
-
-async function stopRecording() {
-  status.textContent = "音声処理中…";
-
-  return new Promise((resolve) => {
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(audioChunks, { type: "audio/webm" });
-      resolve(blob);
-    };
-    mediaRecorder.stop();
-  });
-}
-
-/* ---------------------------
-   3. 音声→文字起こし（簡易）
----------------------------- */
-async function transcribeAudio(blob) {
-  const arrayBuffer = await blob.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-
-  const res = await engine.chat.completions.create({
-    messages: [
-      { role: "system", content: "以下は音声データをbase64化したものです。内容を日本語で文字起こししてください。" },
-      { role: "user", content: base64 }
-    ],
-    max_tokens: 200
-  });
-
-  return res.choices[0].message.content.trim();
-}
-
-/* ---------------------------
-   4. 猫に質問
----------------------------- */
-async function askKitten(text) {
-  const systemPrompt = `
-あなたは蝶ネクタイをつけた生意気な子猫です。
-語尾は少し生意気で、でも可愛い感じにしてください。
-タメ口で1〜3文で返事してください。
-`;
-
-  const res = await engine.chat.completions.create({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: text }
-    ],
-    max_tokens: 120,
-    temperature: 0.8
-  });
-
-  return res.choices[0].message.content;
-}
-
-/* ---------------------------
-   5. 音声合成（口パク）
----------------------------- */
-function speak(text) {
-  const cat = document.getElementById("cat");
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "ja-JP";
-  utter.pitch = 1.4;
-  utter.rate = 1.05;
-
-  utter.onstart = () => cat.classList.add("talking");
-  utter.onend = () => cat.classList.remove("talking");
-
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utter);
-}
-
-/* ---------------------------
-   6. ログ
----------------------------- */
-function addLog(who, text) {
-  const log = document.getElementById("log");
-  const div = document.createElement("div");
-  div.innerHTML = `<strong>[${who}]</strong> ${text}`;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
-
-/* ---------------------------
-   7. 長押しボタン（絶対に押せる）
----------------------------- */
-const micBtn = document.getElementById("micBtn");
-
-let pressing = false;
-
-micBtn.addEventListener("touchstart", async (e) => {
-  e.preventDefault();
-  pressing = true;
-  await startRecording();
-});
-
-micBtn.addEventListener("touchend", async (e) => {
-  e.preventDefault();
-  if (!pressing) return;
-  pressing = false;
-
-  const blob = await stopRecording();
-  const text = await transcribeAudio(blob);
-  addLog("あなた", text);
-
-  const reply = await askKitten(text);
-  addLog("子猫", reply);
-  speak(reply);
-});
-
-micBtn.addEventListener("mousedown", async () => {
-  pressing = true;
-  await startRecording();
-});
-
-micBtn.addEventListener("mouseup", async () => {
-  if (!pressing) return;
-  pressing = false;
-
-  const blob = await stopRecording();
-  const text = await transcribeAudio(blob);
-  addLog("あなた", text);
-
-  const reply = await askKitten(text);
-  addLog("子猫", reply);
-  speak(reply);
-});
-</script>
+        recognition.onresult = async (event) => {
+            const text = event.results[0][0].transcript;
+            document.getElementById('msg-box').innerHTML = "「" + text + "」だな！<br>考え中だよ...<br><span id='status-log'></span>";
+            
+            // ★最新の安定版URLだぞ★
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: "生意気な猫として10文字以内で返せ:" + text }] }]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    // ここで400や404の本当の理由を表示するぞ！
+                    statusLog.innerText = "❌Googleの回答：" + data.error.message;
+                } else {
+                    const reply = data.candidates[0].content.parts[0].text;
+                    document.getElementById('msg-box').innerHTML = reply + "<br><span id='status-log'></span>";
+                    const uttr = new SpeechSynthesisUtterance(reply);
+                    uttr.onstart = () => catBody.style.animation = 'pakupaku 0.15s infinite';
+                    uttr.onend = () => catBody.style.animation = 'breathe 4s infinite';
+                    window.speechSynthesis.speak(uttr);
+                }
+            } catch (e) {
+                statusLog.innerText = "❌通信エラーだにゃ";
+            }
+        };
+    </script>
 </body>
 </html>
