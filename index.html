@@ -27,6 +27,8 @@ body {
   max-width: 420px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.15);
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 .cat-wrapper {
   position: relative;
@@ -89,25 +91,23 @@ body {
   100% { transform: scaleY(0.1); }
 }
 
+/* 押せるボタン（絶対に反応する） */
 .mic-btn {
-  width: 180px;
-  height: 48px;
-  border-radius: 999px;
+  width: 200px;
+  height: 60px;
+  border-radius: 12px;
   border: none;
   background: #ff6b9c;
   color: #fff;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: bold;
   cursor: pointer;
+  z-index: 9999;
+  position: relative;
+  touch-action: none;
 }
-.mic-btn.listening {
+.mic-btn:active {
   background: #ff3b30;
-  animation: pulse 1.2s infinite;
-}
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(255,59,48,0.6); }
-  70% { box-shadow: 0 0 0 12px rgba(255,59,48,0); }
-  100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
 }
 
 .log {
@@ -138,13 +138,13 @@ body {
 
   <div class="log" id="log"></div>
 
-  <button id="micBtn" class="mic-btn">長押しで話しかける</button>
+  <button id="micBtn" class="mic-btn">🎤 長押しで話す</button>
   <div id="status" style="font-size:12px; margin-top:6px;"></div>
 </div>
 
 <script>
 /* ---------------------------
-   1. WebLLM（無料AI）初期化
+   1. WebLLM 初期化
 ---------------------------- */
 const engine = new webllm.MLCEngine();
 let llmReady = false;
@@ -158,14 +158,13 @@ async function initLLM() {
 initLLM();
 
 /* ---------------------------
-   2. 音声録音（getUserMedia → マイク許可が必ず出る）
+   2. マイク録音（getUserMedia）
 ---------------------------- */
 let mediaRecorder;
 let audioChunks = [];
 
 async function startRecording() {
   status.textContent = "録音中…";
-  micBtn.classList.add("listening");
 
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   mediaRecorder = new MediaRecorder(stream);
@@ -178,7 +177,6 @@ async function startRecording() {
 
 async function stopRecording() {
   status.textContent = "音声処理中…";
-  micBtn.classList.remove("listening");
 
   return new Promise((resolve) => {
     mediaRecorder.onstop = () => {
@@ -190,15 +188,12 @@ async function stopRecording() {
 }
 
 /* ---------------------------
-   3. 簡易音声認識（無料・軽量）
+   3. 音声→文字起こし（簡易）
 ---------------------------- */
 async function transcribeAudio(blob) {
-  // 音声をテキストに変換（簡易版）
-  // ※精度は高くないが、無料でスマホでも動く
   const arrayBuffer = await blob.arrayBuffer();
   const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-  // WebLLM に「音声を文字起こしして」と頼む
   const res = await engine.chat.completions.create({
     messages: [
       { role: "system", content: "以下は音声データをbase64化したものです。内容を日本語で文字起こししてください。" },
@@ -211,7 +206,7 @@ async function transcribeAudio(blob) {
 }
 
 /* ---------------------------
-   4. WebLLM に質問
+   4. 猫に質問
 ---------------------------- */
 async function askKitten(text) {
   const systemPrompt = `
@@ -233,7 +228,7 @@ async function askKitten(text) {
 }
 
 /* ---------------------------
-   5. 音声合成（口パク付き）
+   5. 音声合成（口パク）
 ---------------------------- */
 function speak(text) {
   const cat = document.getElementById("cat");
@@ -250,7 +245,7 @@ function speak(text) {
 }
 
 /* ---------------------------
-   6. ログ表示
+   6. ログ
 ---------------------------- */
 function addLog(who, text) {
   const log = document.getElementById("log");
@@ -261,14 +256,23 @@ function addLog(who, text) {
 }
 
 /* ---------------------------
-   7. 長押しで録音
+   7. 長押しボタン（絶対に押せる）
 ---------------------------- */
 const micBtn = document.getElementById("micBtn");
 
-micBtn.addEventListener("mousedown", async () => {
+let pressing = false;
+
+micBtn.addEventListener("touchstart", async (e) => {
+  e.preventDefault();
+  pressing = true;
   await startRecording();
 });
-micBtn.addEventListener("mouseup", async () => {
+
+micBtn.addEventListener("touchend", async (e) => {
+  e.preventDefault();
+  if (!pressing) return;
+  pressing = false;
+
   const blob = await stopRecording();
   const text = await transcribeAudio(blob);
   addLog("あなた", text);
@@ -278,12 +282,15 @@ micBtn.addEventListener("mouseup", async () => {
   speak(reply);
 });
 
-micBtn.addEventListener("touchstart", async (e) => {
-  e.preventDefault();
+micBtn.addEventListener("mousedown", async () => {
+  pressing = true;
   await startRecording();
 });
-micBtn.addEventListener("touchend", async (e) => {
-  e.preventDefault();
+
+micBtn.addEventListener("mouseup", async () => {
+  if (!pressing) return;
+  pressing = false;
+
   const blob = await stopRecording();
   const text = await transcribeAudio(blob);
   addLog("あなた", text);
