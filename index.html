@@ -1,96 +1,268 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生意気猫AI - トランシーバー版</title>
-    <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; user-select: none; -webkit-user-select: none; }
-        #cat-container { position: relative; width: 100vw; height: 45vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 80px; }
-        #cat-body { width: 80%; max-width: 350px; height: auto; animation: breathe 4s infinite ease-in-out; }
-        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
-        @keyframes pakupaku { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1) translateY(-10px); } }
-        #msg-box { background: white; border-radius: 20px; padding: 15px; width: 85%; text-align: center; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; min-height: 80px; }
-        #talk-btn { position: fixed; bottom: 30px; width: 120px; height: 120px; border-radius: 50%; border: none; background: #ff4081; color: white; font-size: 18px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.3); touch-action: none; }
-        #status-log { color: red; font-size: 11px; margin-top: 10px; display: block; }
-    </style>
+<meta charset="UTF-8" />
+<title>生意気な子猫ちゃん（無料AI版）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- WebLLM（ブラウザ内で動く無料AI） -->
+<script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/dist/index.min.js"></script>
+
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  background: #f5f5f5;
+  font-family: system-ui;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+.app {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  text-align: center;
+}
+.cat-wrapper {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  margin: 0 auto 16px;
+}
+.cat {
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  animation: breathing 4s ease-in-out infinite;
+}
+.cat img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+@keyframes breathing {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+/* まばたき */
+.blink {
+  position: absolute;
+  top: 30%;
+  left: 20%;
+  width: 60%;
+  height: 20%;
+  background: black;
+  border-radius: 50%;
+  opacity: 0;
+  animation: blink 6s infinite;
+}
+@keyframes blink {
+  0%,92%,100% { opacity: 0; transform: scaleY(0.1); }
+  94%,96% { opacity: 1; transform: scaleY(1); }
+}
+/* 口パク */
+.mouth {
+  position: absolute;
+  left: 50%;
+  top: 70%;
+  width: 60px;
+  height: 26px;
+  margin-left: -30px;
+  background: rgba(0,0,0,0.6);
+  border-radius: 0 0 60px 60px;
+  transform-origin: top center;
+  transform: scaleY(0.1);
+}
+.talking .mouth {
+  animation: talk 0.18s infinite;
+}
+@keyframes talk {
+  0% { transform: scaleY(0.1); }
+  50% { transform: scaleY(1); }
+  100% { transform: scaleY(0.1); }
+}
+
+.mic-btn {
+  width: 180px;
+  height: 48px;
+  border-radius: 999px;
+  border: none;
+  background: #ff6b9c;
+  color: #fff;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.mic-btn.listening {
+  background: #ff3b30;
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,59,48,0.6); }
+  70% { box-shadow: 0 0 0 12px rgba(255,59,48,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
+}
+
+.log {
+  background: #fafafa;
+  border: 1px solid #eee;
+  padding: 8px;
+  height: 120px;
+  overflow-y: auto;
+  font-size: 12px;
+  text-align: left;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+</style>
 </head>
+
 <body>
-    <div id="cat-container"><img src="IMG_4936.jpeg" id="cat-body" alt="cat"></div>
-    <div id="msg-box">
-        ボタンを【押しっぱなし】にして話して！<br>離すとAIに送るぞ！
-        <span id="status-log"></span>
+<div class="app">
+  <h2>生意気な子猫ちゃん（無料AI）</h2>
+
+  <div class="cat-wrapper">
+    <div class="cat" id="cat">
+      <img src="IMG_4936.jpeg" />
+      <div class="blink"></div>
+      <div class="mouth"></div>
     </div>
-    <button id="talk-btn">押しながら<br>話すぞ！</button>
+  </div>
 
-    <script>
-        const API_KEY = "AIzaSyBfoNa8ysLj71atZQpc-9tZln5_s4__Ogs"; 
-        const talkBtn = document.getElementById('talk-btn');
-        const msgBox = document.getElementById('msg-box');
-        const statusLog = document.getElementById('status-log');
-        const catBody = document.getElementById('cat-body');
+  <div class="log" id="log"></div>
 
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'ja-JP';
-        recognition.interimResults = false;
+  <button id="micBtn" class="mic-btn">長押しで話しかける</button>
+  <div id="status" style="font-size:12px; margin-top:6px;"></div>
+</div>
 
-        // ボタンを押し始めた時
-        talkBtn.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            try {
-                window.speechSynthesis.cancel();
-                recognition.start();
-                talkBtn.style.background = "#f50057";
-                talkBtn.innerText = "聴いてるぞ！";
-                statusLog.innerText = "";
-            } catch(err) { console.log(err); }
-        });
+<script>
+/* ---------------------------
+   1. WebLLM（無料AI）初期化
+---------------------------- */
+const engine = new webllm.MLCEngine();
+let llmReady = false;
 
-        // ボタンを離した時
-        talkBtn.addEventListener('pointerup', (e) => {
-            e.preventDefault();
-            recognition.stop();
-            talkBtn.style.background = "#ff4081";
-            talkBtn.innerText = "送信中...";
-        });
+async function initLLM() {
+  document.getElementById("status").textContent = "AI読み込み中…（20〜40秒）";
+  await engine.reload("Llama-3.2-1B-Instruct-q4f32_1-MLC");
+  llmReady = true;
+  document.getElementById("status").textContent = "AI準備OK！話しかけてね";
+}
+initLLM();
 
-        recognition.onresult = async (event) => {
-            const text = event.results[0][0].transcript;
-            msgBox.innerHTML = "「" + text + "」だな！<br>AIに聞いてくるぞ...<br><span id='status-log'></span>";
-            
-            const reply = await getAI(text);
-            msgBox.innerHTML = reply + "<br><span id='status-log'></span>";
-            speak(reply);
-            talkBtn.innerText = "押しながら\n話すぞ！";
-        };
+/* ---------------------------
+   2. 音声認識
+---------------------------- */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let isListening = false;
 
-        async function getAI(input) {
-            const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-            try {
-                const res = await fetch(url, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: "生意気な猫として10文字以内で返せ:" + input }] }] })
-                });
-                const data = await res.json();
-                if (data.error) {
-                    document.getElementById('status-log').innerText = "❌理由：" + data.error.message;
-                    return "エラーだ！";
-                }
-                return data.candidates[0].content.parts[0].text;
-            } catch (e) {
-                document.getElementById('status-log').innerText = "❌通信失敗";
-                return "ネットがダメだぞ！";
-            }
-        }
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = "ja-JP";
+  recognition.interimResults = false;
 
-        function speak(text) {
-            const s = new SpeechSynthesisUtterance(text);
-            s.lang = 'ja-JP'; s.pitch = 1.8;
-            s.onstart = () => { catBody.style.animation = 'pakupaku 0.15s infinite'; };
-            s.onend = () => { catBody.style.animation = 'breathe 4s infinite'; };
-            window.speechSynthesis.speak(s);
-        }
-    </script>
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.classList.add("listening");
+    status.textContent = "聞き取り中…";
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn.classList.remove("listening");
+    if (!status.textContent.includes("送信中")) status.textContent = "";
+  };
+
+  recognition.onresult = async (e) => {
+    const text = e.results[0][0].transcript;
+    addLog("あなた", text);
+    status.textContent = "AIに送信中…";
+
+    const reply = await askKitten(text);
+    addLog("子猫", reply);
+    speak(reply);
+  };
+}
+
+/* ---------------------------
+   3. WebLLM に質問
+---------------------------- */
+async function askKitten(userText) {
+  if (!llmReady) return "まだAIが準備できてないみたい…ちょっと待ってよ。";
+
+  const systemPrompt = `
+あなたは蝶ネクタイをつけた生意気な子猫です。
+語尾は少し生意気で、でも可愛い感じにしてください。
+タメ口で1〜3文で返事してください。
+`;
+
+  const res = await engine.chat.completions.create({
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userText }
+    ],
+    max_tokens: 120,
+    temperature: 0.8
+  });
+
+  status.textContent = "";
+  return res.choices[0].message.content;
+}
+
+/* ---------------------------
+   4. 音声合成（口パク付き）
+---------------------------- */
+function speak(text) {
+  const cat = document.getElementById("cat");
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "ja-JP";
+  utter.pitch = 1.4;
+  utter.rate = 1.05;
+
+  utter.onstart = () => cat.classList.add("talking");
+  utter.onend = () => cat.classList.remove("talking");
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+}
+
+/* ---------------------------
+   5. ログ表示
+---------------------------- */
+function addLog(who, text) {
+  const log = document.getElementById("log");
+  const div = document.createElement("div");
+  div.innerHTML = `<strong>[${who}]</strong> ${text}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ---------------------------
+   6. ボタン長押しで録音
+---------------------------- */
+const micBtn = document.getElementById("micBtn");
+
+function start() {
+  if (recognition && !isListening) recognition.start();
+}
+function stop() {
+  if (recognition && isListening) recognition.stop();
+}
+
+micBtn.addEventListener("mousedown", start);
+micBtn.addEventListener("mouseup", stop);
+micBtn.addEventListener("mouseleave", stop);
+
+micBtn.addEventListener("touchstart", (e) => { e.preventDefault(); start(); });
+micBtn.addEventListener("touchend", (e) => { e.preventDefault(); stop(); });
+</script>
 </body>
 </html>
