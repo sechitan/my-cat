@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<title>生意気な子猫ちゃん（無料AI版）</title>
+<title>生意気な子猫ちゃん（無料AI）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <!-- WebLLM（ブラウザ内で動く無料AI） -->
@@ -138,7 +138,7 @@ body {
 
   <div class="log" id="log"></div>
 
-  <button id="micBtn" class="mic-btn">長押しで話しかける</button>
+  <button id="micBtn" class="mic-btn">長押し</button>
   <div id="status" style="font-size:12px; margin-top:6px;"></div>
 </div>
 
@@ -150,39 +150,54 @@ const engine = new webllm.MLCEngine();
 let llmReady = false;
 
 async function initLLM() {
-  document.getElementById("status").textContent = "AI読み込み中…（20〜40秒）";
+  status.textContent = "AI読み込み中…（20〜40秒）";
   await engine.reload("Llama-3.2-1B-Instruct-q4f32_1-MLC");
   llmReady = true;
-  document.getElementById("status").textContent = "AI準備OK！話しかけてね";
+  status.textContent = "AI準備OK！話しかけてね";
 }
 initLLM();
 
 /* ---------------------------
-   2. 音声認識
+   2. 音声認識（マイク起動チェック付き）
 ---------------------------- */
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
 let recognition = null;
 let isListening = false;
 
-if (SpeechRecognition) {
+console.log("SpeechRecognition:", SpeechRecognition);
+
+if (!SpeechRecognition) {
+  status.textContent = "このブラウザは音声認識に対応していません。";
+} else {
   recognition = new SpeechRecognition();
   recognition.lang = "ja-JP";
   recognition.interimResults = false;
 
   recognition.onstart = () => {
+    console.log("recognition start");
     isListening = true;
     micBtn.classList.add("listening");
     status.textContent = "聞き取り中…";
   };
 
   recognition.onend = () => {
+    console.log("recognition end");
     isListening = false;
     micBtn.classList.remove("listening");
     if (!status.textContent.includes("送信中")) status.textContent = "";
   };
 
+  recognition.onerror = (e) => {
+    console.log("recognition error:", e.error);
+    status.textContent = "音声認識エラー: " + e.error;
+  };
+
   recognition.onresult = async (e) => {
     const text = e.results[0][0].transcript;
+    console.log("認識結果:", text);
+
     addLog("あなた", text);
     status.textContent = "AIに送信中…";
 
@@ -246,23 +261,44 @@ function addLog(who, text) {
 }
 
 /* ---------------------------
-   6. ボタン長押しで録音
+   6. 長押しで録音（修正版）
 ---------------------------- */
 const micBtn = document.getElementById("micBtn");
 
-function start() {
-  if (recognition && !isListening) recognition.start();
-}
-function stop() {
-  if (recognition && isListening) recognition.stop();
+function startListening() {
+  console.log("startListening()");
+  if (recognition && !isListening) {
+    try {
+      recognition.start();
+    } catch (e) {
+      console.log("start error:", e);
+    }
+  }
 }
 
-micBtn.addEventListener("mousedown", start);
-micBtn.addEventListener("mouseup", stop);
-micBtn.addEventListener("mouseleave", stop);
+function stopListening() {
+  console.log("stopListening()");
+  if (recognition && isListening) {
+    try {
+      recognition.stop();
+    } catch (e) {
+      console.log("stop error:", e);
+    }
+  }
+}
 
-micBtn.addEventListener("touchstart", (e) => { e.preventDefault(); start(); });
-micBtn.addEventListener("touchend", (e) => { e.preventDefault(); stop(); });
+micBtn.addEventListener("mousedown", startListening);
+micBtn.addEventListener("mouseup", stopListening);
+micBtn.addEventListener("mouseleave", stopListening);
+
+micBtn.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  startListening();
+});
+micBtn.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  stopListening();
+});
 </script>
 </body>
 </html>
