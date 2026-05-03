@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生意気猫AI - 最終接続</title>
+    <title>生意気猫AI - 復活のボクちゃん</title>
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; }
         #cat-container { position: relative; width: 100vw; height: 45vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 80px; }
@@ -18,13 +18,15 @@
 <body>
     <div id="cat-container"><img src="IMG_4936.jpeg" id="cat-body" alt="cat"></div>
     <div id="msg-box">
-        ボタンを話して！<br>話し終わったらもう1回押してだよ！
+        ボタンを1回押して話して！<br>話し終わったらもう1回押してだよ！
         <span id="status-log"></span>
     </div>
     <button id="talk-btn">録音開始</button>
 
     <script>
-        const API_KEY = "AIzaSyCIYIaRy06HLwagfVJeRYmlkeEXLkX6IiU"; 
+        // ★今もらった新しいキーをセットしたぞ！★
+        const API_KEY = "AIzaSyBfoNa8ysLj71atZQpc-9tZln5_s4__Ogs"; 
+
         const talkBtn = document.getElementById('talk-btn');
         const msgBox = document.getElementById('msg-box');
         const statusLog = document.getElementById('status-log');
@@ -37,11 +39,13 @@
 
         talkBtn.addEventListener('click', () => {
             if (!isRecording) {
-                recognition.start();
-                isRecording = true;
-                talkBtn.innerText = "話して！";
-                talkBtn.style.background = "#f50057";
-                statusLog.innerText = "聴いてるぞ...";
+                try {
+                    recognition.start();
+                    isRecording = true;
+                    talkBtn.innerText = "停止";
+                    talkBtn.style.background = "#f50057";
+                    statusLog.innerText = "聴いてるぞ...";
+                } catch(e) { statusLog.innerText = "マイク起動エラーだぞ"; }
             } else {
                 recognition.stop();
                 isRecording = false;
@@ -54,40 +58,27 @@
             const text = event.results[event.results.length - 1][0].transcript;
             statusLog.innerText = "「" + text + "」を送信中...";
             const reply = await getAI(text);
-            
-            // 返答を表示
             msgBox.innerHTML = reply + "<br><span id='status-log'></span>";
             speak(reply);
-            
-            // ボタンを元に戻す（エラーでも戻るようにここに配置）
             talkBtn.innerText = "録音開始";
             talkBtn.style.background = "#ff4081";
         };
 
         async function getAI(input) {
-            // 無料枠で最も安定する URL とモデル名の組み合わせだぞ！
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-            
             try {
                 const res = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: "生意気な猫として10文字以内で返せ:" + input }] }]
+                        contents: [{ parts: [{ text: "生意気な猫（語尾は『ぞ！』か『だよ！』）として10文字以内で返せ:" + input }] }]
                     })
                 });
                 const data = await res.json();
-                
-                if (data.error) {
-                    // エラーが出たらそのまま表示する
-                    statusLog.innerText = "❌" + data.error.message;
-                    return "エラーだ！下の文字を見て！";
-                }
-                
+                if (data.error) return "❌エラー：" + data.error.message;
                 return data.candidates[0].content.parts[0].text;
             } catch (e) {
-                statusLog.innerText = "❌通信失敗だぞ！";
-                return "ネットを確認しろだよ！";
+                return "❌通信失敗：" + e.message;
             }
         }
 
