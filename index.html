@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>リアル・おしゃべり猫AI</title>
+    <style>
+        body { margin: 0; padding: 0; background: black; overflow: hidden; font-family: sans-serif; }
+        #bg-video {
+            position: fixed; right: 0; bottom: 0;
+            min-width: 100%; min-height: 100%;
+            width: auto; height: auto; z-index: -100;
+        }
+        #header-ui {
+            position: fixed; top: 0; width: 100%; height: 70px;
+            background: rgba(0,0,0,0.6); display: flex;
+            justify-content: space-around; align-items: center; z-index: 100;
+        }
+        select { padding: 10px; border-radius: 10px; border: none; font-size: 16px; background: #fff; }
+        #msg-box {
+            position: fixed; bottom: 130px; left: 10%; width: 70%;
+            background: rgba(255,255,255,0.9); border-radius: 20px;
+            padding: 20px; text-align: center; font-weight: bold; font-size: 18px; z-index: 100;
+            display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        #talk-btn {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 90px; height: 90px; border-radius: 50%;
+            border: none; background: #ff4081; color: white;
+            font-size: 18px; font-weight: bold; z-index: 100;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <video autoplay loop muted playsinline id="bg-video">
+        <source src="06D68DED-8B94-4295-88BB-67A230952E00.mov" type="video/quicktime">
+    </video>
+
+    <div id="header-ui">
+        <select id="select-person">
+            <option value="母">母（ママ）</option>
+            <option value="父">父（パパ）</option>
+            <option value="子供">子供（きみ）</option>
+        </select>
+        <select id="select-place">
+            <option value="家">家</option>
+            <option value="仕事">仕事</option>
+        </select>
+    </div>
+
+    <div id="msg-box"></div>
+    <button id="talk-btn">話す</button>
+
+    <script>
+        const API_KEY = "AIzaSyBaWr8jV0nK5bJScn4OWjLKvm0dNNnpwYs"; // ここを書き換えて！
+        
+        const talkBtn = document.getElementById('talk-btn');
+        const msgBox = document.getElementById('msg-box');
+        const video = document.getElementById('bg-video');
+        const personSelect = document.getElementById('select-person');
+        const placeSelect = document.getElementById('select-place');
+
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'ja-JP';
+
+        talkBtn.onclick = () => {
+            recognition.start();
+            video.pause(); // 聞くときは止まる
+            msgBox.style.display = 'block';
+            msgBox.innerText = "聞いてるにゃん...👂";
+        };
+
+        recognition.onresult = async (event) => {
+            const uttr = event.results[0][0].transcript;
+            msgBox.innerText = "考え中...";
+            const reply = await getCatAIResponse(uttr);
+            msgBox.innerText = reply;
+            speak(reply);
+        };
+
+        async function getCatAIResponse(userInput) {
+            const person = personSelect.value;
+            const place = placeSelect.value;
+            let callName = (person === "母") ? "ママ" : (person === "父") ? "パパ" : "きみ";
+            
+            const systemPrompt = `あなたは可愛らしい子供の猫。今は${person}（${callName}）と「${place}」にいます。呼び方は「${callName}」で、語尾は「にゃん」。短く15文字以内で答えて。質問：${userInput}`;
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] })
+            });
+            const data = await res.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        function speak(text) {
+            const ssu = new SpeechSynthesisUtterance(text);
+            ssu.lang = 'ja-JP';
+            ssu.pitch = 1.7; 
+            video.playbackRate = 1.5; // 喋るときは速く動く
+            video.play();
+            ssu.onend = () => { video.playbackRate = 0.6; }; // 終わったらゆっくり
+            window.speechSynthesis.speak(ssu);
+        }
+        
+        video.playbackRate = 0.6; // 最初はのんびり
+    </script>
+</body>
+</html>
