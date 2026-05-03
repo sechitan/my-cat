@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生意気猫AI - 復活のボクちゃん</title>
+    <title>生意気猫AI - 最終決戦</title>
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; }
         #cat-container { position: relative; width: 100vw; height: 45vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 80px; }
@@ -24,9 +24,7 @@
     <button id="talk-btn">録音開始</button>
 
     <script>
-        // ★今もらった新しいキーをセットしたぞ！★
         const API_KEY = "AIzaSyBfoNa8ysLj71atZQpc-9tZln5_s4__Ogs"; 
-
         const talkBtn = document.getElementById('talk-btn');
         const msgBox = document.getElementById('msg-box');
         const statusLog = document.getElementById('status-log');
@@ -45,7 +43,7 @@
                     talkBtn.innerText = "停止";
                     talkBtn.style.background = "#f50057";
                     statusLog.innerText = "聴いてるぞ...";
-                } catch(e) { statusLog.innerText = "マイク起動エラーだぞ"; }
+                } catch(e) { statusLog.innerText = "マイク起動エラー"; }
             } else {
                 recognition.stop();
                 isRecording = false;
@@ -56,37 +54,47 @@
 
         recognition.onresult = async (event) => {
             const text = event.results[event.results.length - 1][0].transcript;
-            statusLog.innerText = "「" + text + "」を送信中...";
-            const reply = await getAI(text);
+            statusLog.innerText = "「" + text + "」をAIに相談中...";
+            const reply = await getAIWithRetry(text);
             msgBox.innerHTML = reply + "<br><span id='status-log'></span>";
             speak(reply);
             talkBtn.innerText = "録音開始";
             talkBtn.style.background = "#ff4081";
         };
 
-        async function getAI(input) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-            try {
-                const res = await fetch(url, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: "生意気な猫（語尾は『ぞ！』か『だよ！』）として10文字以内で返せ:" + input }] }]
-                    })
-                });
-                const data = await res.json();
-                if (data.error) return "❌エラー：" + data.error.message;
-                return data.candidates[0].content.parts[0].text;
-            } catch (e) {
-                return "❌通信失敗：" + e.message;
+        // モデルを順番に試す「リトライ機能」を搭載したぞ！
+        async function getAIWithRetry(input) {
+            const models = [
+                "gemini-1.5-flash",
+                "gemini-1.5-flash-latest",
+                "gemini-pro"
+            ];
+
+            for (let modelName of models) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
+                try {
+                    const res = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: "生意気な猫として10文字以内で返せ:" + input }] }] })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.candidates && data.candidates[0].content.parts[0].text) {
+                        return data.candidates[0].content.parts[0].text;
+                    }
+                } catch (e) {
+                    console.log(modelName + " は失敗");
+                }
             }
+            return "❌どのモデルもダメだぞ。時間を置いてから試してだよ！";
         }
 
         function speak(text) {
             const s = new SpeechSynthesisUtterance(text);
             s.lang = 'ja-JP'; s.pitch = 1.8;
             s.onstart = () => { catBody.style.animation = 'pakupaku 0.15s infinite'; };
-            s.onend = () => { catBody.style.animation = 'breathe 4s infinite'; };
+            ssu.onend = () => { catBody.style.animation = 'breathe 4s infinite'; };
             window.speechSynthesis.speak(s);
         }
     </script>
