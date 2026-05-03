@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生意気猫AI - 最終診断</title>
+    <title>生意気猫AI - 最終決戦</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; }
+        body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; }
         #cat-container { position: relative; width: 100vw; height: 45vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 80px; }
         #cat-body { width: 80%; max-width: 350px; height: auto; animation: breathe 4s infinite ease-in-out; }
         @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
         @keyframes pakupaku { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1) translateY(-10px); } }
-        #msg-box { background: white; border-radius: 20px; padding: 15px; width: 85%; text-align: center; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; min-height: 80px; }
-        #talk-btn { position: fixed; bottom: 30px; width: 90px; height: 90px; border-radius: 50%; border: none; background: #ff4081; color: white; font-size: 18px; font-weight: bold; }
-        #status-log { color: red; font-size: 11px; margin-top: 10px; display: block; word-break: break-all; }
+        #msg-box { background: white; border-radius: 20px; padding: 15px; width: 85%; text-align: center; font-weight: bold; font-size: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; min-height: 80px; }
+        #talk-btn { position: fixed; bottom: 30px; width: 100px; height: 100px; border-radius: 50%; border: none; background: #ff4081; color: white; font-size: 20px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        #status-log { color: red; font-size: 11px; margin-top: 10px; display: block; }
     </style>
 </head>
 <body>
     <div id="cat-container"><img src="IMG_4936.jpeg" id="cat-body" alt="cat"></div>
     <div id="msg-box">
-        長押しして話してだよ！<br>
-        <span id="status-log">ここにエラーが出るぞ</span>
+        ボタンを1回押して話して！<br>話し終わったらもう1回押してだよ！
+        <span id="status-log"></span>
     </div>
-    <button id="talk-btn">話す</button>
+    <button id="talk-btn">録音開始</button>
 
     <script>
         const API_KEY = "AIzaSyCIYIaRy06HLwagfVJeRYmlkeEXLkX6IiU"; 
@@ -32,25 +32,38 @@
 
         const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
         recognition.lang = 'ja-JP';
+        recognition.continuous = true; // 途切れても録音を続ける
+        let isRecording = false;
 
-        talkBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            statusLog.innerText = "聴取中...";
-            recognition.start();
-        });
-
-        talkBtn.addEventListener('touchend', () => {
-            recognition.stop();
-            statusLog.innerText = "AIに送信して返事を待ってるぞ...";
+        // ボタンを「1回押すごと」に切り替える方式に変更！
+        talkBtn.addEventListener('click', () => {
+            if (!isRecording) {
+                // 録音開始
+                recognition.start();
+                isRecording = true;
+                talkBtn.innerText = "話して！";
+                talkBtn.style.background = "#f50057";
+                statusLog.innerText = "聴いてるぞ...";
+            } else {
+                // 録音終了・送信
+                recognition.stop();
+                isRecording = false;
+                talkBtn.innerText = "送信中";
+                talkBtn.style.background = "#ccc";
+                statusLog.innerText = "AIに送ってるぞ...";
+            }
         });
 
         recognition.onresult = async (event) => {
-            const text = event.results[0][0].transcript;
+            const text = event.results[event.results.length - 1][0].transcript;
             statusLog.innerText = "「" + text + "」を送信中...";
             
             const reply = await getAI(text);
             msgBox.innerHTML = reply + "<br><span id='status-log'></span>";
             speak(reply);
+            
+            talkBtn.innerText = "録音開始";
+            talkBtn.style.background = "#ff4081";
         };
 
         async function getAI(input) {
@@ -59,20 +72,13 @@
                 const res = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: "生意気な猫として10文字以内で返せ:" + input }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: "生意気な猫（一人称ぼく、語尾は『ぞ！』か『だよ！』）として10文字以内で返せ:" + input }] }] })
                 });
-                
                 const data = await res.json();
-                
-                if (data.error) {
-                    // ここでエラーの正体を突き止める！
-                    statusLog.innerText = "❌エラー：" + data.error.status + "\n理由：" + data.error.message;
-                    return "エラーだ！下の赤文字を読んで！";
-                }
+                if (data.error) return "❌エラー詳細：" + data.error.message;
                 return data.candidates[0].content.parts[0].text;
             } catch (e) {
-                statusLog.innerText = "❌通信失敗：" + e.message;
-                return "ネットがダメだぞ！";
+                return "❌通信失敗：" + e.message;
             }
         }
 
