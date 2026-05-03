@@ -3,98 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生意気猫AI - 最終接続テスト</title>
+    <title>生意気猫AI - 最終完成版</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background: #fff5f5; }
-        #header-ui { position: fixed; top: 0; width: 100%; height: 70px; background: rgba(255,255,255,0.9); display: flex; justify-content: space-around; align-items: center; z-index: 100; border-bottom: 1px solid #ddd; }
-        #cat-container { position: relative; width: 100vw; height: 50vh; display: flex; justify-content: center; align-items: flex-end; margin-top: 80px; }
-        #cat-body { width: 85%; max-width: 350px; height: auto; animation: breathe 4s infinite ease-in-out; }
-        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
-        @keyframes pakupaku { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1) translateY(-10px); } }
-        #msg-box { background: white; border-radius: 20px; padding: 15px; width: 85%; max-width: 500px; text-align: center; font-weight: bold; font-size: 16px; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; min-height: 50px; }
-        #talk-btn { position: fixed; bottom: 30px; width: 90px; height: 90px; border-radius: 50%; border: none; background: #ff4081; color: white; font-size: 18px; font-weight: bold; z-index: 100; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        body {
+            margin: 0; padding: 0; overflow: hidden; font-family: sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            transition: background 0.5s ease; min-height: 100vh;
+            background: linear-gradient(135deg, white 0%, #fff5f5 100%);
+        }
+        #header-ui {
+            position: fixed; top: 0; width: 100%; height: 80px;
+            background: rgba(255,255,255,0.8); display: flex;
+            flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+            backdrop-filter: blur(5px); border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        .select-row { display: flex; gap: 10px; margin-bottom: 5px; }
+        select { padding: 5px 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; }
+        #cat-container {
+            position: relative; width: 100vw; height: 50vh;
+            display: flex; justify-content: center; align-items: flex-end;
+            margin-top: 80px; overflow: hidden;
+        }
+        #cat-body {
+            width: 85%; max-width: 350px; height: auto; z-index: 10;
+            animation: breathe 4s infinite ease-in-out;
+        }
+        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+        @keyframes pakupaku { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08) translateY(-10px); } }
+        #msg-box {
+            background: rgba(255,255,255,0.95); border-radius: 20px;
+            padding: 15px; width: 85%; max-width: 500px;
+            text-align: center; font-weight: bold; font-size: 18px; z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 15px;
+            min-height: 50px; line-height: 1.4;
+        }
+        #talk-btn {
+            position: fixed; bottom: 30px; width: 90px; height: 90px;
+            border-radius: 50%; border: none; background: #ff4081; color: white;
+            font-size: 18px; font-weight: bold; z-index: 100;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        #debug-log { color: red; font-size: 10px; margin-top: 5px; display: block; }
     </style>
 </head>
 <body>
     <div id="header-ui">
-        <select id="select-person"><option value="父">父ちゃん</option><option value="母">ママ</option><option value="のぶ">のぶ</option><option value="けん">けんちゃん</option></select>
-        <select id="select-place"><option value="家">家</option><option value="病院">病院</option><option value="職場">職場</option></select>
+        <div class="select-row">
+            <select id="select-person">
+                <option value="父">父ちゃん</option>
+                <option value="母">ママ</option>
+                <option value="のぶ">のぶ</option>
+                <option value="けん">けんちゃん</option>
+            </select>
+            <select id="select-place">
+                <option value="家">家</option>
+                <option value="病院">病院</option>
+                <option value="職場">職場</option>
+            </select>
+        </div>
     </div>
-    <div id="cat-container"><img src="IMG_4936.jpeg" id="cat-body" alt="cat"></div>
-    <div id="msg-box">1.まずは画面をタップ<br>2.ボタンを長押しして話す</div>
+    <div id="cat-container">
+        <img src="IMG_4936.jpeg" id="cat-body" alt="cat">
+    </div>
+    <div id="msg-box">
+        画面を一度タップしてから<br>ボタンを長押しして話すぞ！
+        <span id="debug-log"></span>
+    </div>
     <button id="talk-btn">話す</button>
 
     <script>
-        // 新しいキーをセットしました
+        // ★APIキーを貼り直したぞ！★
         const API_KEY = "AIzaSyCIYIaRy06HLwagfVJeRYmlkeEXLkX6IiU"; 
 
         const talkBtn = document.getElementById('talk-btn');
         const msgBox = document.getElementById('msg-box');
+        const debugLog = document.getElementById('debug-log');
         const catBody = document.getElementById('cat-body');
+        const personSelect = document.getElementById('select-person');
+        const placeSelect = document.getElementById('select-place');
 
-        // 音声認識の準備
+        function updateBg() {
+            const colors = { "病院": "#e8eaf6", "家": "#fff5f5", "職場": "#e0f2f1" };
+            document.body.style.background = `linear-gradient(135deg, white 0%, ${colors[placeSelect.value]} 100%)`;
+        }
+        placeSelect.onchange = updateBg;
+        updateBg();
+
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
-        recognition.interimResults = false;
 
-        // ボタン操作
-        talkBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            window.speechSynthesis.cancel(); // 前の音声を止める
+        talkBtn.addEventListener('touchstart', (e) => { 
+            e.preventDefault(); 
+            debugLog.innerText = "";
+            window.speechSynthesis.cancel();
             try {
-                recognition.start();
-                msgBox.innerText = "聞いてるぞ！...";
+                recognition.start(); 
+                msgBox.innerHTML = "聞いてるぞ！<br><span id='debug-log'></span>"; 
                 talkBtn.style.background = "#f50057";
             } catch (err) {
-                msgBox.innerText = "エラー：もう一回押してだよ！";
-                recognition.stop();
+                console.log("Recognition start error");
             }
         });
-
-        talkBtn.addEventListener('touchend', () => {
-            recognition.stop();
-            talkBtn.style.background = "#ff4081";
-            msgBox.innerText = "送信中だぞ...";
+        
+        talkBtn.addEventListener('touchend', () => { 
+            recognition.stop(); 
+            talkBtn.style.background = "#ff4081"; 
+            msgBox.innerHTML = "考え中だよ...<br><span id='debug-log'></span>";
         });
 
         recognition.onresult = async (event) => {
-            const text = event.results[0][0].transcript;
-            msgBox.innerText = "「" + text + "」だな！考え中...";
-            const reply = await getAI(text);
-            msgBox.innerText = reply;
+            const uttr = event.results[0][0].transcript;
+            msgBox.innerHTML = "「" + uttr + "」だな！<br>考え中だよ...<br><span id='debug-log'></span>";
+            const reply = await getCatAIResponse(uttr);
+            msgBox.innerHTML = reply + "<br><span id='debug-log'></span>";
             speak(reply);
         };
 
-        async function getAI(input) {
-            const person = document.getElementById('select-person').value;
-            const place = document.getElementById('select-place').value;
-            const prompt = `あなたは生意気な子猫。一人称はぼく。相手は${person}。場所は${place}。語尾は「ぞ！」「だよ！」限定。15文字以内。返答：${input}`;
+        async function getCatAIResponse(userInput) {
+            const person = personSelect.value;
+            const place = placeSelect.value;
+            let personality = (person === "父" || person === "母") ? "大好きだよと甘えまくる。語尾は『〜だよ！』。" : "生意気。すぐ『父ちゃんにちくるぞ！』『いじめないでだよ！』と言う。";
+            let callName = (person === "父") ? "父ちゃん" : (person === "母") ? "ママ" : (person === "のぶ") ? "のぶ" : "けんちゃん";
+            
+            const systemPrompt = `あなたは生意気な猫。一人称は「ぼく」。相手は${callName}、場所は${place}。${personality}語尾は「ぞ！」「だよ！」限定。にゃんは絶対ダメ！15文字以内。返答：${userInput}`;
+            
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                const res = await fetch(url, { 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" }, 
+                    body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] }) 
                 });
                 const data = await res.json();
-                if (data.error) return "APIエラーだぞ！";
-                return data.candidates[0].content.parts[0].text;
+                
+                if (data.error) {
+                    document.getElementById('debug-log').innerText = "APIエラー: " + data.error.message;
+                    return "エラーだ！下の赤文字を見て！";
+                }
+                
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    return data.candidates[0].content.parts[0].text;
+                } else {
+                    return "返事がないぞ！";
+                }
             } catch (e) {
-                return "通信エラーだぞ！";
+                document.getElementById('debug-log').innerText = "接続失敗: " + e.message;
+                return "ネットがつながらないぞ！";
             }
         }
 
         function speak(text) {
-            const uttr = new SpeechSynthesisUtterance(text);
-            uttr.lang = 'ja-JP';
-            uttr.pitch = 1.8;
-            uttr.onstart = () => { catBody.style.animation = 'pakupaku 0.15s infinite'; };
-            uttr.onend = () => { catBody.style.animation = 'breathe 4s infinite'; };
-            window.speechSynthesis.speak(uttr);
+            const ssu = new SpeechSynthesisUtterance(text);
+            ssu.lang = 'ja-JP'; ssu.pitch = 1.8;
+            ssu.onstart = () => { catBody.style.animation = 'pakupaku 0.15s infinite'; };
+            ssu.onend = () => { catBody.style.animation = 'breathe 4s infinite ease-in-out'; };
+            window.speechSynthesis.speak(ssu);
         }
 
-        // iPhone対策：最初のタップで音声を有効化
+        // iPhoneのロック解除用おまじない
         document.body.addEventListener('touchstart', () => {
             const s = new SpeechSynthesisUtterance("");
             window.speechSynthesis.speak(s);
