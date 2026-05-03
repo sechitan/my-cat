@@ -3,78 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>リアル・おしゃべり猫AI</title>
+    <title>お澄まし猫AI - パクパク版</title>
     <style>
-        body { margin: 0; padding: 0; background: black; overflow: hidden; font-family: sans-serif; }
-        #bg-video {
-            position: fixed; right: 0; bottom: 0;
-            min-width: 100%; min-height: 100%;
-            width: auto; height: auto; z-index: -100;
+        body {
+            margin: 0; padding: 0; overflow: hidden; font-family: sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            transition: background 0.5s ease; min-height: 100vh;
         }
+
+        /* --- UIエリア --- */
         #header-ui {
-            position: fixed; top: 0; width: 100%; height: 70px;
-            background: rgba(0,0,0,0.6); display: flex;
-            justify-content: space-around; align-items: center; z-index: 100;
+            position: fixed; top: 0; width: 100%; height: 80px;
+            background: rgba(255,255,255,0.8); display: flex;
+            flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+            backdrop-filter: blur(5px); border-bottom: 1px solid rgba(0,0,0,0.1);
         }
-        select { padding: 10px; border-radius: 10px; border: none; font-size: 16px; background: #fff; }
+        .select-row { display: flex; gap: 10px; margin-bottom: 5px; }
+        select { padding: 5px 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; }
+
+        /* --- 猫表示（パクパク・まばたき） --- */
+        #cat-container {
+            position: relative; width: 100vw; height: 55vh;
+            display: flex; justify-content: center; align-items: flex-end;
+            margin-top: 80px; overflow: hidden;
+        }
+        #cat-body {
+            width: 90%; max-width: 400px; height: auto; z-index: 10;
+            /* 通常時の呼吸アニメ */
+            animation: breathe 4s infinite ease-in-out;
+            transition: transform 0.1s;
+        }
+
+        /* パクパクアニメ（喋っている時用） */
+        @keyframes pakupaku {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05) translateY(-5px); }
+        }
+
+        /* 呼吸アニメ */
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        /* まばたきエフェクト（たまに瞬きさせる） */
+        #blink-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 20; opacity: 0; pointer-events: none;
+            transition: opacity 0.05s;
+        }
+
+        /* --- 会話吹き出し --- */
         #msg-box {
-            position: fixed; bottom: 130px; left: 10%; width: 70%;
-            background: rgba(255,255,255,0.9); border-radius: 20px;
-            padding: 20px; text-align: center; font-weight: bold; font-size: 18px; z-index: 100;
-            display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            background: rgba(255,255,255,0.95); border-radius: 20px;
+            padding: 15px; width: 85%; max-width: 500px;
+            text-align: center; font-weight: bold; font-size: 18px; z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 15px;
         }
+
         #talk-btn {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 90px; height: 90px; border-radius: 50%;
-            border: none; background: #ff4081; color: white;
+            position: fixed; bottom: 30px; width: 90px; height: 90px;
+            border-radius: 50%; border: none; background: #ff4081; color: white;
             font-size: 18px; font-weight: bold; z-index: 100;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
     </style>
 </head>
 <body>
 
-    <video autoplay loop muted playsinline id="bg-video">
-        <source src="06D68DED-8B94-4295-88BB-67A230952E00.mov" type="video/quicktime">
-    </video>
-
     <div id="header-ui">
-        <select id="select-person">
-            <option value="母">母（ママ）</option>
-            <option value="父">父（パパ）</option>
-            <option value="子供">子供（きみ）</option>
-        </select>
-        <select id="select-place">
-            <option value="家">家</option>
-            <option value="仕事">仕事</option>
-        </select>
+        <div class="select-row">
+            <select id="select-person">
+                <option value="父">父ちゃん</option>
+                <option value="母">ママ</option>
+                <option value="のぶ">のぶ</option>
+                <option value="けん">けんちゃん</option>
+            </select>
+            <select id="select-place">
+                <option value="病院">病院</option>
+                <option value="家">家</option>
+                <option value="職場">職場</option>
+            </select>
+        </div>
     </div>
 
-    <div id="msg-box"></div>
+    <div id="cat-container">
+        <img src="IMG_4936.jpeg" id="cat-body" alt="cat">
+        <div id="blink-overlay"></div>
+    </div>
+
+    <div id="msg-box">長押しして話してにゃ！</div>
     <button id="talk-btn">話す</button>
 
     <script>
-        const API_KEY = "AIzaSyBaWr8jV0nK5bJScn4OWjLKvm0dNNnpwYs"; // ここを書き換えて！
+        const API_KEY = "AIzaSyBaWr8jV0nK5bJScn4OWjLKvm0dNNnpwYs"; 
         
         const talkBtn = document.getElementById('talk-btn');
         const msgBox = document.getElementById('msg-box');
-        const video = document.getElementById('bg-video');
+        const catBody = document.getElementById('cat-body');
+        const blinkOverlay = document.getElementById('blink-overlay');
         const personSelect = document.getElementById('select-person');
         const placeSelect = document.getElementById('select-place');
+
+        // 背景切り替え
+        function updateBg() {
+            const colors = { "病院": "#e8eaf6", "家": "#fff5f5", "職場": "#e0f2f1" };
+            document.body.style.background = `linear-gradient(135deg, white 0%, ${colors[placeSelect.value]} 100%)`;
+        }
+        placeSelect.onchange = updateBg;
+        updateBg();
+
+        // 瞬き（たまに画面を暗くする演出）
+        setInterval(() => {
+            if (Math.random() > 0.8) {
+                blinkOverlay.style.opacity = "0.3";
+                setTimeout(() => blinkOverlay.style.opacity = "0", 100);
+            }
+        }, 3000);
 
         const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
         recognition.lang = 'ja-JP';
 
-        talkBtn.onclick = () => {
-            recognition.start();
-            video.pause(); // 聞くときは止まる
-            msgBox.style.display = 'block';
-            msgBox.innerText = "聞いてるにゃん...👂";
-        };
+        talkBtn.addEventListener('touchstart', (e) => { 
+            e.preventDefault(); recognition.start(); 
+            msgBox.innerText = "聞いてるにゃん👂..."; 
+            talkBtn.style.background = "#f50057";
+        });
+        talkBtn.addEventListener('touchend', () => { 
+            recognition.stop(); 
+            talkBtn.style.background = "#ff4081"; 
+            msgBox.innerText = "考え中だにゃん🐾...";
+        });
 
         recognition.onresult = async (event) => {
             const uttr = event.results[0][0].transcript;
-            msgBox.innerText = "考え中...";
             const reply = await getCatAIResponse(uttr);
             msgBox.innerText = reply;
             speak(reply);
@@ -83,31 +145,31 @@
         async function getCatAIResponse(userInput) {
             const person = personSelect.value;
             const place = placeSelect.value;
-            let callName = (person === "母") ? "ママ" : (person === "父") ? "パパ" : "きみ";
-            
-            const systemPrompt = `あなたは可愛らしい子供の猫。今は${person}（${callName}）と「${place}」にいます。呼び方は「${callName}」で、語尾は「にゃん」。短く15文字以内で答えて。質問：${userInput}`;
+            let personality = (person === "父" || person === "母") ? "最高に甘えた声で「〜だよ！」" : "すごく生意気。すぐ『父ちゃんにちくるぞ！』と威嚇する。";
+            let callName = (person === "父") ? "父ちゃん" : (person === "母") ? "ママ" : (person === "のぶ") ? "のぶ" : "けんちゃん";
 
+            const systemPrompt = `あなたは生意気な子供の猫。一人称は「ぼく」。今は${callName}と「${place}」にいます。${personality}。語尾は「ぞ！」「だよ！」。にゃんは絶対ダメ！15文字以内。質問：${userInput}`;
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-            const res = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] })
-            });
+            const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: systemPrompt }] }] }) });
             const data = await res.json();
             return data.candidates[0].content.parts[0].text;
         }
 
+        // 音声合成（喋る部分）
         function speak(text) {
             const ssu = new SpeechSynthesisUtterance(text);
-            ssu.lang = 'ja-JP';
-            ssu.pitch = 1.7; 
-            video.playbackRate = 1.5; // 喋るときは速く動く
-            video.play();
-            ssu.onend = () => { video.playbackRate = 0.6; }; // 終わったらゆっくり
+            ssu.lang = 'ja-JP'; ssu.pitch = 1.8;
+            
+            // 喋り出したとき：パクパクアニメを開始
+            ssu.onstart = () => {
+                catBody.style.animation = 'pakupaku 0.2s infinite'; 
+            };
+            // 喋り終わったとき：呼吸アニメに戻る
+            ssu.onend = () => {
+                catBody.style.animation = 'breathe 4s infinite ease-in-out';
+            };
             window.speechSynthesis.speak(ssu);
         }
-        
-        video.playbackRate = 0.6; // 最初はのんびり
     </script>
 </body>
 </html>
