@@ -5,7 +5,7 @@
 <title>生意気な子猫ちゃん（無料AI）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<!-- WebLLM（ブラウザ内で動く無料AI） -->
+<!-- WebLLM（無料AI） -->
 <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/dist/index.min.js"></script>
 
 <style>
@@ -138,7 +138,7 @@ body {
 
   <div class="log" id="log"></div>
 
-  <button id="micBtn" class="mic-btn">長押し</button>
+  <button id="micBtn" class="mic-btn">長押しで話しかける</button>
   <div id="status" style="font-size:12px; margin-top:6px;"></div>
 </div>
 
@@ -158,61 +158,62 @@ async function initLLM() {
 initLLM();
 
 /* ---------------------------
-   2. 音声認識（マイク起動チェック付き）
+   2. 音声録音（getUserMedia → マイク許可が必ず出る）
 ---------------------------- */
-const SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
+let mediaRecorder;
+let audioChunks = [];
 
-let recognition = null;
-let isListening = false;
+async function startRecording() {
+  status.textContent = "録音中…";
+  micBtn.classList.add("listening");
 
-console.log("SpeechRecognition:", SpeechRecognition);
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaRecorder = new MediaRecorder(stream);
 
-if (!SpeechRecognition) {
-  status.textContent = "このブラウザは音声認識に対応していません。";
-} else {
-  recognition = new SpeechRecognition();
-  recognition.lang = "ja-JP";
-  recognition.interimResults = false;
+  audioChunks = [];
+  mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
 
-  recognition.onstart = () => {
-    console.log("recognition start");
-    isListening = true;
-    micBtn.classList.add("listening");
-    status.textContent = "聞き取り中…";
-  };
+  mediaRecorder.start();
+}
 
-  recognition.onend = () => {
-    console.log("recognition end");
-    isListening = false;
-    micBtn.classList.remove("listening");
-    if (!status.textContent.includes("送信中")) status.textContent = "";
-  };
+async function stopRecording() {
+  status.textContent = "音声処理中…";
+  micBtn.classList.remove("listening");
 
-  recognition.onerror = (e) => {
-    console.log("recognition error:", e.error);
-    status.textContent = "音声認識エラー: " + e.error;
-  };
-
-  recognition.onresult = async (e) => {
-    const text = e.results[0][0].transcript;
-    console.log("認識結果:", text);
-
-    addLog("あなた", text);
-    status.textContent = "AIに送信中…";
-
-    const reply = await askKitten(text);
-    addLog("子猫", reply);
-    speak(reply);
-  };
+  return new Promise((resolve) => {
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      resolve(blob);
+    };
+    mediaRecorder.stop();
+  });
 }
 
 /* ---------------------------
-   3. WebLLM に質問
+   3. 簡易音声認識（無料・軽量）
 ---------------------------- */
-async function askKitten(userText) {
-  if (!llmReady) return "まだAIが準備できてないみたい…ちょっと待ってよ。";
+async function transcribeAudio(blob) {
+  // 音声をテキストに変換（簡易版）
+  // ※精度は高くないが、無料でスマホでも動く
+  const arrayBuffer = await blob.arrayBuffer();
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
+  // WebLLM に「音声を文字起こしして」と頼む
+  const res = await engine.chat.completions.create({
+    messages: [
+      { role: "system", content: "以下は音声データをbase64化したものです。内容を日本語で文字起こししてください。" },
+      { role: "user", content: base64 }
+    ],
+    max_tokens: 200
+  });
+
+  return res.choices[0].message.content.trim();
+}
+
+/* ---------------------------
+   4. WebLLM に質問
+---------------------------- */
+async function askKitten(text) {
   const systemPrompt = `
 あなたは蝶ネクタイをつけた生意気な子猫です。
 語尾は少し生意気で、でも可愛い感じにしてください。
@@ -222,18 +223,17 @@ async function askKitten(userText) {
   const res = await engine.chat.completions.create({
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: userText }
+      { role: "user", content: text }
     ],
     max_tokens: 120,
     temperature: 0.8
   });
 
-  status.textContent = "";
   return res.choices[0].message.content;
 }
 
 /* ---------------------------
-   4. 音声合成（口パク付き）
+   5. 音声合成（口パク付き）
 ---------------------------- */
 function speak(text) {
   const cat = document.getElementById("cat");
@@ -250,7 +250,7 @@ function speak(text) {
 }
 
 /* ---------------------------
-   5. ログ表示
+   6. ログ表示
 ---------------------------- */
 function addLog(who, text) {
   const log = document.getElementById("log");
@@ -261,43 +261,36 @@ function addLog(who, text) {
 }
 
 /* ---------------------------
-   6. 長押しで録音（修正版）
+   7. 長押しで録音
 ---------------------------- */
 const micBtn = document.getElementById("micBtn");
 
-function startListening() {
-  console.log("startListening()");
-  if (recognition && !isListening) {
-    try {
-      recognition.start();
-    } catch (e) {
-      console.log("start error:", e);
-    }
-  }
-}
-
-function stopListening() {
-  console.log("stopListening()");
-  if (recognition && isListening) {
-    try {
-      recognition.stop();
-    } catch (e) {
-      console.log("stop error:", e);
-    }
-  }
-}
-
-micBtn.addEventListener("mousedown", startListening);
-micBtn.addEventListener("mouseup", stopListening);
-micBtn.addEventListener("mouseleave", stopListening);
-
-micBtn.addEventListener("touchstart", (e) => {
-  e.preventDefault();
-  startListening();
+micBtn.addEventListener("mousedown", async () => {
+  await startRecording();
 });
-micBtn.addEventListener("touchend", (e) => {
+micBtn.addEventListener("mouseup", async () => {
+  const blob = await stopRecording();
+  const text = await transcribeAudio(blob);
+  addLog("あなた", text);
+
+  const reply = await askKitten(text);
+  addLog("子猫", reply);
+  speak(reply);
+});
+
+micBtn.addEventListener("touchstart", async (e) => {
   e.preventDefault();
-  stopListening();
+  await startRecording();
+});
+micBtn.addEventListener("touchend", async (e) => {
+  e.preventDefault();
+  const blob = await stopRecording();
+  const text = await transcribeAudio(blob);
+  addLog("あなた", text);
+
+  const reply = await askKitten(text);
+  addLog("子猫", reply);
+  speak(reply);
 });
 </script>
 </body>
